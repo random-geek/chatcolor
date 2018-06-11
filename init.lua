@@ -1,3 +1,5 @@
+-- Techy5's colored chat CSM
+
 local data = minetest.get_mod_storage()
 local forms = {"chat", "me", "join"}
 local guiRow = 1 -- Which row in the GUI is selected
@@ -22,24 +24,27 @@ local chatSource = function(msg) -- Find the source of the message
 	return false -- If nothing else returned, return false
 end
 
-local setColor = function(key, value)
-	if key == nil or key == "" then -- Reject bad input
+local setColor = function(name, value)
+	local str, key
+	if not name or name == "" then -- Reject bad input
 		minetest.display_chat_message("Invalid setting name.")
 		return
 	end
-	if string.len(key) > 8 and string.sub(key, 1, 8) == "default_" then -- Default settings
-		if value == nil then -- Can't delete defaults
+	if string.len(name) > 8 and string.sub(name, 1, 8) == "default_" then -- If we are setting a default colour
+		if not value then -- Can't delete defaults
 			minetest.display_chat_message("Cannot delete defaults!")
 			return
 		end
-	else -- Player settings
-		key = "player_" .. key -- Regular players
-		minetest.display_chat_message("Color set sucessfully! (" .. key .. ")")
+		key = name 
+	else -- If we are setting a player colour
+		key = "player_" .. name -- Append player prefix
 	end
-	data:set_string(key, value)
+	data:set_string(key, value) -- Set colour
+	if value then str = "set" else str = "deleted" end -- Nil values indicate deletion
+	minetest.display_chat_message("Color " .. str .. " sucessfully! (" .. name  .. ")")
 end
 
-local getList = function(readable) -- Return nicely sorted array of colour defenitions (if readable is true, results will be human-readable.)
+local getList = function(readable) -- Return nicely sorted array of colour defenitions (if readable is true, player prefix will be excluded)
 	local list = data:to_table().fields
 	local arr = {}
 	for key,value in pairs(list) do -- Get key and value for all pairs
@@ -50,22 +55,22 @@ local getList = function(readable) -- Return nicely sorted array of colour defen
 	end
 	table.sort(arr) -- Sort alphabetically.
 	for i = 1,3 do -- List defaults at end
-		local key = "default_" .. forms[i] -- default value prefix + default type
-		local value = list[key] -- Get colour
+		local key = "default_" .. forms[i] -- Get default setting key
+		local value = list[key] -- Get value for key
 		arr[#arr+1] = key .. "," .. value
 	end
 	return arr -- Numerical index table in key,value format. Must be numerical index for sorting.
 end
 
 local getFormspec = function(modify, defaultText)
-	if not modify then
+	if not modify then -- Fetch main screen
 		local tableDef = ""
-		local list = getList(true)
+		local list = getList(true) -- Get list of players
 		for i = 1,#list do -- Convert to formspec-friendly format
 			local item = string.split(list[i], ",")
 			tableDef = tableDef .. item[1] .. ",".. item[2] .. "," .. item[2] .. ","
 		end
-		tableDef = string.sub(tableDef, 1, string.len(tableDef)-1)
+		tableDef = string.sub(tableDef, 1, string.len(tableDef)-1) -- Remove trailing comma
 		return [[
 			size[8,9, false]
 			label[1,0.5;Techy5's Colored Chat]
@@ -73,13 +78,13 @@ local getFormspec = function(modify, defaultText)
 			button[3,1;2,1;main_delete;Delete]
 			button[5,1;2,1;main_add;Add...]
 			tablecolumns[text;color;text]
-			table[1,2;6,6;main_table;]] .. tableDef .. [[;1]
+			table[1,2;6,6;main_table;]] .. tableDef .. [[;]] .. tostring(guiRow) .. [[]
 			button_exit[1,8;2,1;exit;Exit]
 			tooltip[main_modify;Change the color for the selected element]
 			tooltip[main_delete;Delete the selected element]
 			tooltip[main_add;Add a color definition]
 		]]
-	else
+	else -- Fetch modify screen
 		return [[size[8,3, false]
 			field[1.3,1.3;2,1;mod_player;Player;]] .. defaultText .. [[]
 			field[3.3,1.3;2,1;mod_color;HTML/hex color;]
@@ -102,7 +107,7 @@ minetest.register_chatcommand("delcolor", {
 	params = "<name>",
 	description = "Set a specified player's chat messages to the default color",
 	func = function(param)
-		setColor(param, nil)
+		setColor(param, nil) -- Setting a colour to nil deletes it.
 	end
 })
 
@@ -122,6 +127,7 @@ minetest.register_chatcommand("gui", {
 	params = "",
 	description = "Display colored chat GUI",
 	func = function(param)
+		guiRow = 1 -- Select first row of table
 		minetest.show_formspec("chatcolor:maingui", getFormspec())
 	end
 })
@@ -132,13 +138,13 @@ minetest.register_on_formspec_input(function(formname, fields)
 	
 	if fields.main_delete then
 		local list = getList(true)
-		local key = string.split(list[guiRow], ",")[1]
+		local key = string.split(list[guiRow], ",")[1] -- From selected row number, find what entry is selected
 		setColor(key, nil)
 		minetest.show_formspec("chatcolor:maingui", getFormspec())
 	elseif fields.main_modify then
 		local list = getList(true)
-		local key = string.split(list[guiRow], ",")[1]
-		minetest.show_formspec("chatcolor:modify", getFormspec(true, key))
+		local key = string.split(list[guiRow], ",")[1]  -- Same as above
+		minetest.show_formspec("chatcolor:modify", getFormspec(true, key)) -- Get formspec and send selected name to modify screen
 	elseif fields.main_add then
 		minetest.show_formspec("chatcolor:modify", getFormspec(true, ""))
 	elseif fields.mod_set and fields.mod_player and fields.mod_color then
