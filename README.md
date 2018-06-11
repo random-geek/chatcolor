@@ -1,4 +1,4 @@
-# Colored-Chat
+# chatcolor
 
 A Minetest CSM which adds functionality for colouring messages from specific players.
 
