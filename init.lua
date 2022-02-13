@@ -35,7 +35,7 @@ local setColor = function(name, value)
 			minetest.display_chat_message("Cannot delete defaults!")
 			return
 		end
-		key = name 
+		key = name
 	else -- If we are setting a player colour
 		key = "player_" .. name -- Append player prefix
 	end
@@ -135,7 +135,7 @@ minetest.register_chatcommand("gui", {
 minetest.register_on_formspec_input(function(formname, fields)
 	if not string.find(formname, "chatcolor") then return end -- Avoid conflicts
 	if fields.main_table then guiRow = tonumber(string.match(fields.main_table, "%d+")) end -- Get the selected table row on change.
-	
+
 	if fields.main_delete then
 		local list = getList(true)
 		local key = string.split(list[guiRow], ",")[1] -- From selected row number, find what entry is selected
@@ -155,11 +155,12 @@ minetest.register_on_formspec_input(function(formname, fields)
 	end
 end)
 
-minetest.register_on_connect(function()
-	minetest.register_on_receiving_chat_messages(function(message)
+-- I don't remember if or why `register_on_mods_loaded` was necessary.
+minetest.register_on_mods_loaded(function()
+	minetest.register_on_receiving_chat_message(function(message)
 		local msgPlain = minetest.strip_colors(message)
 		local source = chatSource(msgPlain)
-		
+
 		if source then -- Normal chat/me/join messages
 			local key = "player_" .. source.name -- The setting name
 			local color = data:get_string(key) -- Get the desired colour
