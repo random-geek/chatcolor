@@ -63,8 +63,18 @@ local function message_info(richMsg)
 	-- Unrecognized message types will return nil.
 end
 
+local function table_contains(tab, target)
+	for _, val in ipairs(tab) do
+		if val == target then
+			return true
+		end
+	end
+
+	return false
+end
+
 -- Set player/default color.
--- name: player name or default_whatever
+-- name: player name or default_something
 -- color: HTML string, hex color ('#' will be prepended if necessary), or nil to delete entry.
 local function set_color(name, color)
 	if not name or name == "" then
@@ -80,6 +90,11 @@ local function set_color(name, color)
 
 	local key
 	if string.sub(name, 1, 8) == "default_" then
+		if not table_contains(MESSAGE_TYPES, string.sub(name, 9)) then
+			minetest.display_chat_message(string.format("No setting called '%s'.", name))
+			return
+		end
+
 		if not color then
 			minetest.display_chat_message("Cannot delete defaults!")
 			return
@@ -206,7 +221,7 @@ minetest.register_on_formspec_input(function(formname, fields)
 		minetest.show_formspec("chatcolor:modify", get_formspec(true, row[1], row[2]))
 	elseif fields.main_add then
 		minetest.show_formspec("chatcolor:modify", get_formspec(true, "", ""))
-	elseif fields.mod_set and fields.mod_player and fields.mod_color then
+	elseif (fields.mod_set or fields.key_enter) and fields.mod_player and fields.mod_color then
 		set_color(fields.mod_player, fields.mod_color)
 		minetest.show_formspec("chatcolor:maingui", get_formspec())
 	elseif fields.mod_cancel then

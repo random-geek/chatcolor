@@ -6,7 +6,7 @@ A Minetest client-side mod (CSM) which adds custom chat message coloring based o
 
 ## Features
 
-* Colors regular, /me, and join/leave messages
+* Colors chat messages, DMs, /me messages, and join/leave messages
 * Colors names in server status messages
 * Set any color for any name
 * Set default colors for each type of message
@@ -30,7 +30,7 @@ Displays a GUI for modifying colors.
 
 ### `.setcolor <name> <color>`
 
-Color messages from player `<name>` as `<color>`. To set a default for a certain type of message, use the names `default_chat`, `default_me`, or `default_join`.
+Color messages from player `<name>` as `<color>`. To set a default for a certain type of message, use the names `default_chat`, `default_dm`, etc. (see `.colors` for a full list).
 
 Examples:
 
