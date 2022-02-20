@@ -1,10 +1,10 @@
 -- random-geek's colored chat CSM
 
-local guiRow = 1 -- Which row in the GUI is selected
+local MESSAGE_TYPES = {"chat", "me", "join", "leave", "dm"}
+local DEFAULT_COLOR = "#FFFFFF"
 
 local data = minetest.get_mod_storage()
-local MESSAGE_TYPES = {"chat", "me", "join"}
-local DEFAULT_COLOR = "#FFFFFF"
+local guiRow = 1 -- Which row in the GUI is selected
 
 -- Make sure all our defaults are in place.
 for _, type in ipairs(MESSAGE_TYPES) do
@@ -14,20 +14,53 @@ for _, type in ipairs(MESSAGE_TYPES) do
 	end
 end
 
+-- Removes Minetest \x1b escape sequences (colors, translations) from a string.
+--
+-- This may give wrong output for malformed strings or backslash-escaped right
+-- parentheses within an escape string. See unescape_enriched() in
+-- minetest/src/util/string.h for a correct implementation.
+local function remove_escapes(str)
+	-- Remove \x1b followed by anything in parentheses
+	str = string.gsub(str, "\x1b%(.-%)", "")
+	-- Remove \x1b followed by a single character
+	str = string.gsub(str, "\x1b.", "")
+	return str
+end
+
+-- Test remove_escapes()
+-- assert(remove_escapes("\x1b\xb1(Escapes\x1b() are\x1bE cool!\x1b(T@__Az-1\\\\))") == "(Escapes are cool!)")
+
 -- Find the type and source of a chat message.
-local function message_info(msg)
+local function message_info(richMsg)
+	-- Strip any translation data to get a plaintext English message.
+	local msg = remove_escapes(richMsg)
+	local type, name
+
 	if string.sub(msg, 1, 1) == "<" then -- Normal chat messages (<player> message)
-		local parts = string.split(msg, ">")
-		return {type = "chat", name = string.sub(parts[1], 2)}
+		type = "chat"
+		name = string.match(msg, "^<([1-9A-Za-z-_]+)> ")
 	elseif string.sub(msg, 1, 2) == "* " then -- /me messages (* player message)
-		local parts = string.split(msg, " ")
-		return {type = "me", name = parts[2]}
+		type = "me"
+		name = string.match(msg, "^%* ([1-9A-Za-z-_]+) ")
 	elseif string.sub(msg, 1, 4) == "*** " then -- Join/leave messages (*** player joined/left the game.)
-		local parts = string.split(msg, " ")
-		return {type = "join", name = parts[2]}
-	else -- Unrecognized message type
-		return nil
+		local tempName, typeStr = string.match(msg, "^%*%*%* ([1-9A-Za-z-_]+) (%a+)")
+		name = tempName
+		if typeStr == "joined" then
+			type = "join"
+		elseif typeStr == "left" then
+			type = "leave"
+		end
+	elseif string.sub(msg, 1, 8) == "DM from " then -- Direct messages (DM from player: message)
+		type = "dm"
+		-- PM was switched to DM in Minetest 5.1.0, this supports both.
+		name = string.match(msg, "^DM from ([1-9A-Za-z-_]+): ")
 	end
+
+	-- Note: either may be nil.
+	if type and name then
+		return {type = type, name = name}
+	end
+	-- Unrecognized message types will return nil.
 end
 
 -- Set player/default color.
@@ -37,7 +70,7 @@ local function set_color(name, color)
 	if not name or name == "" then
 		minetest.display_chat_message("Player or setting name required.")
 		return
-	elseif not string.match(name, "^[%a%d-_]+$") then
+	elseif not string.match(name, "^[1-9A-Za-z-_]+$") then
 		minetest.display_chat_message(string.format("Invalid player or setting name '%s'.", name))
 		return
 	elseif color == "" then
